@@ -30,4 +30,13 @@ jsonApi.define({
   }
 });
 
+jsonApi.define({
+  resource: "documents",
+  handlers: new jsonApi.MemoryHandler(),
+  attributes: {
+    title: jsonApi.Joi.string(),
+    content: jsonApi.Joi.string()
+  }
+});
+
 jsonApi.start();
