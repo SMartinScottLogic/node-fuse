@@ -6,6 +6,8 @@ const request = require('request')
 const mountPath = process.platform !== 'win32' ? './mnt' : 'M:\\'
 const base = 'http://localhost:16006'
 
+const known_entities = ['photos', 'documents']
+
 request(base + '/photos', function (err, response, body) {
   if(err) {
     error('request', err);
@@ -16,12 +18,26 @@ request(base + '/photos', function (err, response, body) {
 fuse.mount(mountPath, {
   readdir: function (path, cb) {
     info('readdir', path)
-    cb(0, [])
+    if (path === '/') {
+      return cb(0, known_entities)
+    }
+    const match = known_entities.find((entity) => path === '/' + entity)
+    if(match) {
+      request(base + path, function (err, response, body) {
+	if (err) {
+	  error('request', base, path, err);
+	  return cb(0, [])
+	}
+	info('request', base, path, JSON.parse(body)["data"])
+	const content = JSON.parse(body).data.map((element) => element.attributes.title || element.id)
+	return cb(0, content)
+      })
+    } else cb(0, [])
   },
   getattr: function (path, cb) {
     info('getattr', path)
     if (path === '/') {
-      cb(0, {
+      return cb(0, {
         mtime: new Date(),
         atime: new Date(),
         ctime: new Date(),
@@ -30,8 +46,29 @@ fuse.mount(mountPath, {
         uid: process.getuid ? process.getuid() : 0,
         gid: process.getgid ? process.getgid() : 0
       })
-      return
     }
+    const match = known_entities.find((entity) => path === '/' + entity)
+    if(match) {
+      return cb(0, {
+        mtime: new Date(),
+        atime: new Date(),
+        ctime: new Date(),
+        size: 100,
+        mode: 0o40755,
+        uid: process.getuid ? process.getuid() : 0,
+        gid: process.getgid ? process.getgid() : 0
+      })
+    }
+	  // Should do request here.
+      return cb(0, {
+        mtime: new Date(),
+        atime: new Date(),
+        ctime: new Date(),
+        size: 100,
+        mode: 0o100644,
+        uid: process.getuid ? process.getuid() : 0,
+        gid: process.getgid ? process.getgid() : 0
+      })
     cb(fuse.ENOENT)
   },
   statfs: function (path, cb) {
