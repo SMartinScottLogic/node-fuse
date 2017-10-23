@@ -60,6 +60,13 @@ fuse.mount(mountPath, {
       })
     }
 	  // Should do request here.
+    request(base + path, function (err, response, body) {
+        if (err) {
+	  error('request', base, path, err)
+          return cb(fuse.ENOENT)
+	}
+	info('request', base, path, JSON.parse(body)['data'])
+
       return cb(0, {
         mtime: new Date(),
         atime: new Date(),
@@ -69,7 +76,7 @@ fuse.mount(mountPath, {
         uid: process.getuid ? process.getuid() : 0,
         gid: process.getgid ? process.getgid() : 0
       })
-    cb(fuse.ENOENT)
+    })
   },
   statfs: function (path, cb) {
       cb(0, {
