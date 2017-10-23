@@ -17,6 +17,7 @@
   "dependencies": {
     "debug": "^3.1.0",
     "fuse-bindings": "^2.11.1",
-    "jsonapi-server": "^3.2.2"
+    "jsonapi-server": "^3.2.2",
+    "request": "^2.83.0"
   }
 }

@@ -1,8 +1,17 @@
 const fuse = require('fuse-bindings')
 const info = require('debug')('node-fuse:info')
 const error = require('debug')('node-fuse:error')
+const request = require('request')
 
 const mountPath = process.platform !== 'win32' ? './mnt' : 'M:\\'
+const base = 'http://localhost:16006'
+
+request(base + '/photos', function (err, response, body) {
+  if(err) {
+    error('request', err);
+  }
+  info('request', body)
+})
 
 fuse.mount(mountPath, {
   readdir: function (path, cb) {
