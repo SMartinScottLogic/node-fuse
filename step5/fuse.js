@@ -6,16 +6,14 @@ const request = require('request')
 const mountPath = process.platform !== 'win32' ? './mnt' : 'M:\\'
 const base = 'http://localhost:16006'
 
-const known_entities = ['photos', 'documents']
-
-request(base + '/photos', function (err, response, body) {
-  if(err) {
-    error('request', err);
-  }
-  info('request', body)
-})
+const known_entities = [ ]
 
 fuse.mount(mountPath, {
+  mkdir: function(path, mode, cb) {
+    info('mkdir', path)
+    known_entities.push(path.slice(1))
+    cb(0)
+  },
   readdir: function (path, cb) {
     info('readdir', path)
     if (path === '/') {
@@ -29,8 +27,8 @@ fuse.mount(mountPath, {
 	  return cb(0, [])
 	}
 	info('request', base, path, JSON.parse(body)["data"])
-	const content = JSON.parse(body).data.map((element) => element.attributes.title || element.id)
-	return cb(0, content)
+	const element_ids = JSON.parse(body).data.map((element) => element.id)
+	return cb(0, element_ids)
       })
     } else cb(0, [])
   },
@@ -59,13 +57,20 @@ fuse.mount(mountPath, {
         gid: process.getgid ? process.getgid() : 0
       })
     }
-	  // Should do request here.
+    if (known_entities.indexOf(path.split('/')[1]) === -1) {
+      return cb(fuse.ENOENT)
+    }
     request(base + path, function (err, response, body) {
         if (err) {
 	  error('request', base, path, err)
           return cb(fuse.ENOENT)
 	}
-	info('request', base, path, JSON.parse(body)['data'])
+        const json_body = JSON.parse(body)
+        if (json_body.errors) {
+	  error('request', base, path, json_body.errors)
+	  return cb(fuse.ENOENT)
+        }
+	info('request', base, path, json_body['data'])
 
       return cb(0, {
         mtime: new Date(),
@@ -92,6 +97,45 @@ fuse.mount(mountPath, {
 	    flag: 1000000,
 	    namemax: 1000000
 	  })
+  },
+  open: function(path, mode, cb) {
+    info('open', path)
+    cb(0)
+  },
+  read: function(path, fd, buf, len, pos, cb) {
+    info('read', path, fd, len, pos)
+    request(base + path, function(err, response, body) {
+      if (err) {
+        error('request', base, path, err)
+	return cb(0)
+      }
+      const json_body = JSON.parse(body)
+      if (json_body.errors) {
+	error('request', base, path, json_body.errors)
+	return cb(0)
+      }
+      const content = JSON.stringify(JSON.parse(body).data.attributes)
+      if (!content) {
+        return cb(0)
+      }
+      buf.write(content)
+      return cb(content.length)
+    })
+  },
+  unlink: function(path, cb) {
+    info('unlink', path)
+    request(base + path, {method: 'DELETE'}, function(err, response, body) {
+      if (err) {
+        error('request', base, path, err)
+        return cb(fuse.ENOENT)
+      }
+      const json_body = JSON.parse(body)
+      if (json_body.errors) {
+        error('request', base, path, json_body.errors)
+	return cb(fuse.ENOENT)
+      }
+      cb(0)
+    })
   }
 }, function (err) {
   if (err) throw err

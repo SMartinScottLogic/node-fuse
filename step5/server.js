@@ -39,4 +39,13 @@ jsonApi.define({
   }
 });
 
+jsonApi.define({
+  resource: "contacts",
+  handlers: new jsonApi.MemoryHandler(),
+  attributes: {
+    first_name: jsonApi.Joi.string(),
+    last_name: jsonApi.Joi.string()
+  }
+});
+
 jsonApi.start();
